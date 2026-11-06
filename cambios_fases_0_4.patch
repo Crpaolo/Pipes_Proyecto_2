@@ -1,0 +1,621 @@
+--- selfie.c.original
++++ selfie.c
+@@ -1306,7 +1306,17 @@
+ uint64_t SYSCALL_COUNT_SYSCALLS = 11;
+ //###########################################################################################
+ 
+-// you should add new syscalls IDs here
++// Project syscall ABI: host and self-compiled guests use the same wrappers.
++uint64_t SYSCALL_FORK = 220;
++void emit_fork();
++uint64_t SYSCALL_PIPE_CREATE  = 500;
++uint64_t SYSCALL_PIPE_DESTROY = 503;
++void emit_pipe_create();
++void emit_pipe_destroy();
++uint64_t SYSCALL_PIPE_WRITE = 501;
++uint64_t SYSCALL_PIPE_READ  = 502;
++void emit_pipe_write();
++void emit_pipe_read();
+ 
+ /* DIRFD_AT_FDCWD corresponds to AT_FDCWD in fcntl.h and
+    is passed as first argument of the openat system call
+@@ -2018,12 +2028,19 @@
+ // | 29 | free-list head  | pointer to head of free list
+ // | 30 | gcs counter     | number of gc runs in gc period
+ // | 31 | gc enabled      | flag indicating whether to use gc or not
++// | 32 | status          | READY, BLOCKED, or EXITED
++// | 33 | next waiter     | next context in a pipe wait queue
+ // +----+-----------------+
+ 
+ // number of entries of a machine context:
+-// 14 uint64_t + 6 uint64_t* + 1 char* + 7 uint64_t + 2 uint64_t* + 2 uint64_t entries
++// 14 uint64_t + 6 uint64_t* + 1 char* + 7 uint64_t + 2 uint64_t* + 2 uint64_t
++// + 1 uint64_t status + 1 uint64_t* next-waiter entry
+ // extended in the symbolic execution engine and the Boehm garbage collector
+-uint64_t CONTEXTENTRIES = 32;
++uint64_t CONTEXTENTRIES = 34;
++
++uint64_t CTX_READY   = 0;
++uint64_t CTX_BLOCKED = 1;
++uint64_t CTX_EXITED  = 2;
+ 
+ uint64_t* allocate_context(); // declaration avoids warning in the Boehm garbage collector
+ 
+@@ -2137,6 +2154,11 @@
+ void set_gcs_in_period(uint64_t* context, uint64_t gcs)              { *(context + 30) = gcs; }
+ void set_use_gc_kernel(uint64_t* context, uint64_t use)              { *(context + 31) = use; }
+ 
++uint64_t  get_status(uint64_t* context)      { return *(context + 32); }
++uint64_t* get_next_waiter(uint64_t* context) { return (uint64_t*) *(context + 33); }
++void set_status(uint64_t* context, uint64_t status)     { *(context + 32) = status; }
++void set_next_waiter(uint64_t* context, uint64_t* next) { *(context + 33) = (uint64_t) next; }
++
+ // -----------------------------------------------------------------
+ // ---------------------------- MEMORY -----------------------------
+ // -----------------------------------------------------------------
+@@ -2371,11 +2393,19 @@
+ uint64_t free_page_frame_memory      = 0;
+ 
+ uint64_t next_page_frame = 0;
++uint64_t next_process_id = 1;
++
++uint64_t PIPE_CAPACITY = 16;
++uint64_t MAX_PIPES = 16;
++uint64_t* pipe_table = (uint64_t*) 0;
+ 
+ // ------------------------- INITIALIZATION ------------------------
+ 
+ void reset_microkernel() {
+   current_context = (uint64_t*) 0;
++  next_process_id = 1;
++  // Pipe IDs belong to one emulated execution, not the whole CLI session.
++  pipe_table = (uint64_t*) 0;
+ 
+   while (used_contexts != (uint64_t*) 0)
+     used_contexts = delete_context(used_contexts, used_contexts);
+@@ -2767,6 +2797,11 @@
+   // assert: i >= 0
+   uint64_t a;
+ 
++  // Native C has byte-addressable char; C* bootstraps char to a word.
++  // Avoid a word read past short native string literals or unaligned argv.
++  if (sizeof(char) == 1)
++    return *(s + i);
++
+   // a is the index of the word where the
+   // to-be-loaded i-th character in s is
+   a = i / sizeof(uint64_t);
+@@ -2779,8 +2814,17 @@
+ }
+ 
+ char* store_character(char* s, uint64_t i, char c) {
+-  // assert: i >= 0, 0 <= c < 2^8 (all characters are 8-bit)
++  // Host C may use signed char while C* uses unsigned words for char.
++  // Normalize before arithmetic to preserve surrounding bytes for 128..255.
+   uint64_t a;
++  uint64_t byte_value;
++
++  if (sizeof(char) == 1) {
++    *(s + i) = c;
++    return s;
++  }
++
++  byte_value = get_bits((uint64_t) c, 0, 8);
+ 
+   // a is the index of the word where the with c
+   // to-be-overwritten i-th character in s is
+@@ -2792,8 +2836,8 @@
+   // subtract the to-be-overwritten character to reset its bits in s
+   // then add c to set its bits at the i-th position in s
+   *((uint64_t*) s + a) = (*((uint64_t*) s + a)
+-    - left_shift(load_character(s, i), (i % sizeof(uint64_t)) * 8))
+-      + left_shift(c, (i % sizeof(uint64_t)) * 8);
++    - left_shift(get_bits((uint64_t) load_character(s, i), 0, 8), (i % sizeof(uint64_t)) * 8))
++      + left_shift(byte_value, (i % sizeof(uint64_t)) * 8);
+ 
+   return s;
+ }
+@@ -3095,14 +3139,22 @@
+ }
+ 
+ uint64_t write_to_printf(uint64_t fd, uint64_t* buffer, uint64_t bytes_to_write) {
++  uint64_t i;
++
+   if (fd == 1)
+-    // writing to console
+-    if (OS != SELFIE)
+-      // on boot level 0 use printf to write to console
+-      // keeping output synchronized with other printf output
+-
+-      // assert: buffer is null-terminated
+-      return printf("%s", (char*) buffer);
++    if (OS != SELFIE) {
++      // Keep host stdio ordering while respecting size, including embedded NUL.
++      i = 0;
++      while (i < bytes_to_write) {
++        if (printf("%c", load_character((char*) buffer, i)) != 1) {
++          if (i == 0)
++            return -1;
++          return i;
++        }
++        i = i + 1;
++      }
++      return i;
++    }
+ 
+   return sign_extend(write(fd, buffer, bytes_to_write), SYSCALL_BITWIDTH);
+ }
+@@ -6293,6 +6345,11 @@
+   emit_exit();
+   emit_dummy_syscall();
+   emit_count_syscalls();
++  emit_fork();
++  emit_pipe_create();
++  emit_pipe_destroy();
++  emit_pipe_write();
++  emit_pipe_read();
+   emit_read();
+   emit_write();
+   emit_open();
+@@ -7864,9 +7921,14 @@
+   // null-terminate buffer
+   *(IO_buffer + size / sizeof(uint64_t)) = 0;
+ 
+-  if (copy_buffer(context, vbuffer, IO_buffer, size, 0))
++  if (size == 0)
++    // copy_buffer(size=0) means filename, not an empty byte transfer.
++    *(get_regs(context) + REG_A0) = 0;
++  else if (copy_buffer(context, vbuffer, IO_buffer, size, 0)) {
++    // Whole-word copying may have overwritten the earlier terminator.
++    store_character((char*) IO_buffer, size, 0);
+     *(get_regs(context) + REG_A0) = sign_shrink(write_to_printf(fd, IO_buffer, size), SYSCALL_BITWIDTH);
+-  else
++  } else
+     *(get_regs(context) + REG_A0) = sign_shrink(-1, SYSCALL_BITWIDTH);
+ 
+   set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
+@@ -9554,6 +9616,22 @@
+     }
+     //##################################################################
+     //##################################################################
++    else if (*(registers + REG_A7) == SYSCALL_FORK)
++      write_register(REG_A0);
++    else if (*(registers + REG_A7) == SYSCALL_PIPE_CREATE)
++      write_register(REG_A0);
++    else if (*(registers + REG_A7) == SYSCALL_PIPE_DESTROY)
++      write_register(REG_A0);
++    else if (*(registers + REG_A7) == SYSCALL_PIPE_WRITE) {
++      read_register(REG_A1);
++      read_register(REG_A2);
++      write_register(REG_A0);
++    }
++    else if (*(registers + REG_A7) == SYSCALL_PIPE_READ) {
++      read_register(REG_A1);
++      read_register(REG_A2);
++      write_register(REG_A0);
++    }
+     else if (*(registers + REG_A7) == SYSCALL_EXIT)
+     {
+       // only reads a0
+@@ -11303,6 +11381,10 @@
+   set_free_list_head(context, (uint64_t*) 0);
+   set_gcs_in_period(context, 0);
+   set_use_gc_kernel(context, GC_DISABLED);
++
++  // Recycled contexts are not zero-filled.
++  set_status(context, CTX_READY);
++  set_next_waiter(context, (uint64_t*) 0);
+ }
+ 
+ uint64_t* create_context(uint64_t* parent, uint64_t* vctxt) {
+@@ -11856,6 +11938,299 @@
+ 
+ //#################################################################
+ //#################################################################
++void emit_fork() {
++  create_symbol_table_entry(GLOBAL_TABLE, string_copy("fork"),
++    0, PROCEDURE, UINT64_T, 0, code_size);
++
++  emit_addi(REG_A7, REG_ZR, SYSCALL_FORK);
++  emit_ecall();
++  emit_jalr(REG_ZR, REG_RA, 0);
++}
++
++void syscall_return(uint64_t* context, uint64_t value) {
++  *(get_regs(context) + REG_A0) = sign_shrink(value, SYSCALL_BITWIDTH);
++  set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
++}
++
++uint64_t copy_fork_pages(uint64_t* parent, uint64_t* child, uint64_t lo, uint64_t hi) {
++  uint64_t frame;
++  uint64_t* copy;
++  uint64_t i;
++
++  while (lo < hi) {
++    frame = get_page_frame(get_pt(parent), lo);
++    if (frame != 0) {
++      if (pavailable() == 0)
++        return 0;
++      copy = palloc();
++      i = 0;
++      while (i < PAGEFRAMESIZE / sizeof(uint64_t)) {
++        *(copy + i) = *((uint64_t*) frame + i);
++        i = i + 1;
++      }
++      map_page(child, lo, (uint64_t) copy);
++    }
++    lo = lo + 1;
++  }
++  return 1;
++}
++
++void implement_fork(uint64_t* context) {
++  uint64_t* child;
++  uint64_t i;
++  uint64_t copied;
++
++  // Reserve the 32-bit all-ones error value; never return it as a PID.
++  if (next_process_id >= 4294967295) {
++    syscall_return(context, -1);
++    return;
++  }
++
++  child = create_context(MY_CONTEXT, 0);
++  // A partially initialized child must never be runnable.
++  set_status(child, CTX_EXITED);
++
++  set_name(child, get_name(context));
++  set_code_seg_start(child, get_code_seg_start(context));
++  set_code_seg_size(child, get_code_seg_size(context));
++  set_data_seg_start(child, get_data_seg_start(context));
++  set_data_seg_size(child, get_data_seg_size(context));
++  set_heap_seg_start(child, get_heap_seg_start(context));
++  // map_page uses the break to classify low and high mappings.
++  set_program_break(child, get_program_break(context));
++
++  i = 0;
++  while (i < NUMBEROFREGISTERS) {
++    *(get_regs(child) + i) = *(get_regs(context) + i);
++    i = i + 1;
++  }
++
++  copied = copy_fork_pages(context, child, get_lowest_lo_page(context), get_highest_lo_page(context));
++  if (copied)
++    copied = copy_fork_pages(context, child, get_lowest_hi_page(context), get_highest_hi_page(context));
++
++  if (copied == 0) {
++    // Selfie's allocator has no frame reclamation. Keep the failed child
++    // inert; already copied frames remain allocated (no kernel free list).
++    syscall_return(context, -1);
++    return;
++  }
++
++  set_pc(child, get_pc(context));
++  syscall_return(child, 0);
++  set_status(child, CTX_READY);
++  syscall_return(context, next_process_id);
++  next_process_id = next_process_id + 1;
++}
++
++// Pipe object layout (9 words), allocated in emulator/kernel memory:
++// | 0 id | 1 buffer | 2 r | 3 w | 4 n |
++// | 5 readers head | 6 readers tail | 7 writers head | 8 writers tail |
++// Queue fields remain zero in phase 4; blocking is introduced in phase 5.
++uint64_t  get_pipe_id(uint64_t* pipe)     { return *pipe; }
++uint64_t* get_pipe_buffer(uint64_t* pipe) { return (uint64_t*) *(pipe + 1); }
++uint64_t  get_pipe_r(uint64_t* pipe)      { return *(pipe + 2); }
++uint64_t  get_pipe_w(uint64_t* pipe)      { return *(pipe + 3); }
++uint64_t  get_pipe_n(uint64_t* pipe)      { return *(pipe + 4); }
++void set_pipe_id(uint64_t* pipe, uint64_t id)          { *pipe = id; }
++void set_pipe_buffer(uint64_t* pipe, uint64_t* buffer) { *(pipe + 1) = (uint64_t) buffer; }
++void set_pipe_r(uint64_t* pipe, uint64_t r)            { *(pipe + 2) = r; }
++void set_pipe_w(uint64_t* pipe, uint64_t w)            { *(pipe + 3) = w; }
++void set_pipe_n(uint64_t* pipe, uint64_t n)            { *(pipe + 4) = n; }
++
++void emit_pipe_create() {
++  create_symbol_table_entry(GLOBAL_TABLE, string_copy("pipe_create"),
++    0, PROCEDURE, UINT64_T, 0, code_size);
++  emit_addi(REG_A7, REG_ZR, SYSCALL_PIPE_CREATE);
++  emit_ecall();
++  emit_jalr(REG_ZR, REG_RA, 0);
++}
++
++void emit_pipe_destroy() {
++  create_symbol_table_entry(GLOBAL_TABLE, string_copy("pipe_destroy"),
++    0, PROCEDURE, UINT64_T, 1, code_size);
++  emit_load(REG_A0, REG_SP, 0);
++  emit_addi(REG_SP, REG_SP, WORDSIZE);
++  emit_addi(REG_A7, REG_ZR, SYSCALL_PIPE_DESTROY);
++  emit_ecall();
++  emit_jalr(REG_ZR, REG_RA, 0);
++}
++
++uint64_t* lookup_pipe(uint64_t id) {
++  if (pipe_table == (uint64_t*) 0)
++    return (uint64_t*) 0;
++  if (id == 0)
++    return (uint64_t*) 0;
++  if (id >= MAX_PIPES)
++    return (uint64_t*) 0;
++  return (uint64_t*) *(pipe_table + id);
++}
++
++void implement_pipe_create(uint64_t* context) {
++  uint64_t id;
++  uint64_t* pipe;
++
++  if (pipe_table == (uint64_t*) 0)
++    pipe_table = zmalloc(MAX_PIPES * sizeof(uint64_t));
++
++  id = 1;
++  while (id < MAX_PIPES) {
++    if (*(pipe_table + id) == 0) {
++      pipe = zmalloc(9 * sizeof(uint64_t));
++      set_pipe_id(pipe, id);
++      set_pipe_buffer(pipe, zmalloc(round_up(PIPE_CAPACITY, sizeof(uint64_t))));
++      *(pipe_table + id) = (uint64_t) pipe;
++      syscall_return(context, id);
++      return;
++    }
++    id = id + 1;
++  }
++  syscall_return(context, -1);
++}
++
++void implement_pipe_destroy(uint64_t* context) {
++  uint64_t id;
++
++  id = *(get_regs(context) + REG_A0);
++  if (lookup_pipe(id) == (uint64_t*) 0) {
++    syscall_return(context, -1);
++    return;
++  }
++  *(pipe_table + id) = 0;
++  // TODO: reclaim object and buffer when Selfie gains kernel free lists.
++  // Phase 4 has no blocked pipe operations to wake up.
++  syscall_return(context, 0);
++}
++
++void emit_pipe_write() {
++  create_symbol_table_entry(GLOBAL_TABLE, string_copy("pipe_write"),
++    0, PROCEDURE, UINT64_T, 3, code_size);
++  emit_load(REG_A0, REG_SP, 0);
++  emit_addi(REG_SP, REG_SP, WORDSIZE);
++  emit_load(REG_A1, REG_SP, 0);
++  emit_addi(REG_SP, REG_SP, WORDSIZE);
++  emit_load(REG_A2, REG_SP, 0);
++  emit_addi(REG_SP, REG_SP, WORDSIZE);
++  emit_addi(REG_A7, REG_ZR, SYSCALL_PIPE_WRITE);
++  emit_ecall();
++  emit_jalr(REG_ZR, REG_RA, 0);
++}
++
++void emit_pipe_read() {
++  create_symbol_table_entry(GLOBAL_TABLE, string_copy("pipe_read"),
++    0, PROCEDURE, UINT64_T, 3, code_size);
++  emit_load(REG_A0, REG_SP, 0);
++  emit_addi(REG_SP, REG_SP, WORDSIZE);
++  emit_load(REG_A1, REG_SP, 0);
++  emit_addi(REG_SP, REG_SP, WORDSIZE);
++  emit_load(REG_A2, REG_SP, 0);
++  emit_addi(REG_SP, REG_SP, WORDSIZE);
++  emit_addi(REG_A7, REG_ZR, SYSCALL_PIPE_READ);
++  emit_ecall();
++  emit_jalr(REG_ZR, REG_RA, 0);
++}
++
++// Return the physical word containing this guest byte, or null on error.
++// Never use copy_buffer here: it rejects unaligned buffers and overwrites
++// entire words on reads, even when the request covers only one byte.
++uint64_t* guest_word(uint64_t* context, uint64_t vaddr) {
++  uint64_t word;
++
++  if (is_virtual_address_valid(vaddr, 1) == 0)
++    return (uint64_t*) 0;
++  if (is_data_stack_heap_address(context, vaddr) == 0)
++    return (uint64_t*) 0;
++
++  word = vaddr - vaddr % WORDSIZE;
++  if (is_virtual_address_valid(word, WORDSIZE) == 0)
++    return (uint64_t*) 0;
++  if (is_data_stack_heap_address(context, word) == 0)
++    return (uint64_t*) 0;
++
++  if (is_virtual_address_mapped(get_pt(context), word) == 0) {
++    if (pavailable() == 0)
++      return (uint64_t*) 0;
++    map_page(context, page_of_virtual_address(word), (uint64_t) palloc());
++    if (is_heap_address(context, word))
++      set_mc_mapped_heap(context, get_mc_mapped_heap(context) + PAGESIZE);
++  }
++  return translate_virtual_to_physical(get_pt(context), word);
++}
++
++// Serialized by mipster's instruction/trap loop. No other guest context
++// executes while this handler checks and updates the ring.
++void implement_pipe_transfer(uint64_t* context, uint64_t writing) {
++  uint64_t* pipe;
++  uint64_t vbuffer;
++  uint64_t size;
++  uint64_t moved;
++  uint64_t vaddr;
++  uint64_t* word;
++  uint64_t index;
++
++  pipe = lookup_pipe(*(get_regs(context) + REG_A0));
++  if (pipe == (uint64_t*) 0) {
++    syscall_return(context, -1);
++    return;
++  }
++
++  vbuffer = *(get_regs(context) + REG_A1);
++  size = *(get_regs(context) + REG_A2);
++  moved = 0;
++
++  // ID validity precedes zero length; zero length precedes availability.
++  while (moved < size) {
++    if (writing) {
++      if (get_pipe_n(pipe) == PIPE_CAPACITY) {
++        // Phase 4: full returns immediately, including zero progress.
++        syscall_return(context, moved);
++        return;
++      }
++    } else if (get_pipe_n(pipe) == 0) {
++      // Phase 4: empty returns immediately, including zero progress.
++      syscall_return(context, moved);
++      return;
++    }
++
++    vaddr = vbuffer + moved;
++    word = (uint64_t*) 0;
++    // Guard overflow before validating the resulting guest address.
++    if (vaddr >= vbuffer)
++      word = guest_word(context, vaddr);
++    if (word == (uint64_t*) 0) {
++      if (moved == 0)
++        syscall_return(context, -1);
++      else
++        syscall_return(context, moved);
++      return;
++    }
++
++    if (writing) {
++      index = get_pipe_w(pipe);
++      store_character((char*) get_pipe_buffer(pipe), index,
++        load_character((char*) word, vaddr % WORDSIZE));
++      set_pipe_w(pipe, (index + 1) % PIPE_CAPACITY);
++      set_pipe_n(pipe, get_pipe_n(pipe) + 1);
++    } else {
++      index = get_pipe_r(pipe);
++      store_character((char*) word, vaddr % WORDSIZE,
++        load_character((char*) get_pipe_buffer(pipe), index));
++      set_pipe_r(pipe, (index + 1) % PIPE_CAPACITY);
++      set_pipe_n(pipe, get_pipe_n(pipe) - 1);
++    }
++    moved = moved + 1;
++  }
++  syscall_return(context, moved);
++}
++
++void implement_pipe_write(uint64_t* context) {
++  implement_pipe_transfer(context, 1);
++}
++
++void implement_pipe_read(uint64_t* context) {
++  implement_pipe_transfer(context, 0);
++}
++
+ uint64_t handle_system_call(uint64_t *context)
+ {
+   
+@@ -11880,6 +12255,21 @@
+     else
+       implement_brk(context);
+   }
++  else if (a7 == SYSCALL_FORK)
++    implement_fork(context);
++
++  else if (a7 == SYSCALL_PIPE_CREATE)
++    implement_pipe_create(context);
++
++  else if (a7 == SYSCALL_PIPE_DESTROY)
++    implement_pipe_destroy(context);
++
++  else if (a7 == SYSCALL_PIPE_WRITE)
++    implement_pipe_write(context);
++
++  else if (a7 == SYSCALL_PIPE_READ)
++    implement_pipe_read(context);
++
+   else if (a7 == SYSCALL_READ)
+     implement_read(context);
+ 
+@@ -11898,7 +12288,7 @@
+   else if (a7 == SYSCALL_EXIT)
+   {
+     implement_exit(context);
+-    // TODO: exit only if all contexts have exited
++    // mipster marks this context EXITED and schedules the remaining ones.
+     return EXIT;
+   }
+   else
+@@ -11993,11 +12383,37 @@
+   }
+ }
+ 
++// Only contexts owned by this kernel are scheduled here. Cached virtual
++// contexts are dispatched explicitly by their parent through switch().
++uint64_t* schedule(uint64_t* from) {
++  uint64_t* candidate;
++
++  candidate = get_next_context(from);
++  if (candidate == (uint64_t*) 0)
++    candidate = used_contexts;
++
++  while (1) {
++    if (get_parent(candidate) == MY_CONTEXT)
++      if (get_status(candidate) == CTX_READY)
++        return candidate;
++
++    if (candidate == from)
++      return (uint64_t*) 0;
++
++    candidate = get_next_context(candidate);
++    if (candidate == (uint64_t*) 0)
++      candidate = used_contexts;
++  }
++}
++
+ uint64_t mipster(uint64_t* to_context) {
+   uint64_t timeout;
++  uint64_t last_exception;
++  uint64_t last_exit_code;
+   uint64_t* from_context;
+ 
+   timeout = TIMESLICE;
++  last_exit_code = EXITCODE_NOERROR;
+ 
+   while (1) {
+     from_context = mipster_switch(to_context, timeout);
+@@ -12007,13 +12423,34 @@
+       to_context = get_parent(from_context);
+ 
+       timeout = TIMEROFF;
+-    } else if (handle_exception(from_context) == EXIT)
+-      return get_exit_code(from_context);
+-    else {
+-      // TODO: scheduler should go here
+-      to_context = from_context;
+-
+-      timeout = TIMESLICE;
++    } else {
++      // handle_exception clears the exception field.
++      last_exception = get_exception(from_context);
++      if (handle_exception(from_context) == EXIT) {
++        set_status(from_context, CTX_EXITED);
++        last_exit_code = get_exit_code(from_context);
++      }
++
++      if (last_exception == EXCEPTION_TIMER)
++        to_context = schedule(from_context);
++      else if (get_status(from_context) != CTX_READY)
++        to_context = schedule(from_context);
++      else
++        to_context = from_context;
++
++      if (to_context == (uint64_t*) 0)
++        return last_exit_code;
++
++      if (last_exception == EXCEPTION_TIMER)
++        timeout = TIMESLICE;
++      else if (to_context != from_context)
++        timeout = TIMESLICE;
++      else if (timer == TIMEROFF)
++        timeout = TIMESLICE;
++      else
++        // Syscalls and page faults must not renew a process's time slice.
++        // Otherwise a polling process can starve every other ready process.
++        timeout = timer;
+     }
+   }
+ }

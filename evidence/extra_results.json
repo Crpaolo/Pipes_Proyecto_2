@@ -1,0 +1,161 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "test": "x_console_binary",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.002,
+      "termination_codes": [
+        0
+      ]
+    },
+    {
+      "test": "x_pipe_binary",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.002,
+      "termination_codes": [
+        0
+      ]
+    },
+    {
+      "test": "x_pipe_edges",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.002,
+      "termination_codes": [
+        0
+      ]
+    },
+    {
+      "test": "x_pipe_boundaries",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.002,
+      "termination_codes": [
+        0
+      ]
+    },
+    {
+      "test": "x_pipe_wrap",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.009,
+      "termination_codes": [
+        0
+      ]
+    },
+    {
+      "test": "x_fork_ipc",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.007,
+      "termination_codes": [
+        0
+      ]
+    },
+    {
+      "test": "x_reset_registry",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.001,
+      "termination_codes": [
+        0
+      ]
+    },
+    {
+      "test": "reset_kernel",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "nested_p3_registry",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.608,
+      "termination_codes": [
+        0,
+        0
+      ]
+    },
+    {
+      "test": "nested_p4_transfer",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 1.306,
+      "termination_codes": [
+        0,
+        0
+      ]
+    },
+    {
+      "test": "nested_p4_temporary",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.465,
+      "termination_codes": [
+        0,
+        0
+      ]
+    },
+    {
+      "test": "nested_x_pipe_binary",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.793,
+      "termination_codes": [
+        0,
+        0
+      ]
+    },
+    {
+      "test": "nested_x_pipe_boundaries",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 1.124,
+      "termination_codes": [
+        0,
+        0
+      ]
+    },
+    {
+      "test": "nested_x_fork_ipc",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 12.94,
+      "termination_codes": [
+        0,
+        0
+      ]
+    },
+    {
+      "test": "nested_x_console_binary",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.373,
+      "termination_codes": [
+        0,
+        0
+      ]
+    },
+    {
+      "test": "final_checkpoint_identity",
+      "passed": true
+    }
+  ]
+}

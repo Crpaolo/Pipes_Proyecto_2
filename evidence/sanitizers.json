@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "test": "p2_fork",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "p4_transfer",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "x_console_binary",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "x_pipe_binary",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "x_pipe_edges",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "x_pipe_boundaries",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "x_pipe_wrap",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "x_fork_ipc",
+      "passed": true,
+      "exit_code": 0
+    }
+  ],
+  "note": "Known arena leaks excluded; guest buffer bounds checked by functional tests."
+}

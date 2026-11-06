@@ -1,0 +1,100 @@
+{
+  "phase": 4,
+  "passed": true,
+  "checks": [
+    {
+      "test": "gcc_build",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "test": "self_compile",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.056,
+      "termination_codes": []
+    },
+    {
+      "test": "self_on_self",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.444,
+      "termination_codes": [
+        0,
+        0
+      ]
+    },
+    {
+      "test": "p0_write",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.002,
+      "termination_codes": [
+        0
+      ]
+    },
+    {
+      "test": "p1_exit",
+      "passed": true,
+      "exit_code": 7,
+      "expected_exit": 7,
+      "seconds": 0.803,
+      "termination_codes": [
+        7
+      ]
+    },
+    {
+      "test": "p2_fork",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.152,
+      "termination_codes": [
+        0
+      ]
+    },
+    {
+      "test": "p2_exit",
+      "passed": true,
+      "exit_code": 5,
+      "expected_exit": 5,
+      "seconds": 0.151,
+      "termination_codes": [
+        5
+      ]
+    },
+    {
+      "test": "p3_registry",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.002,
+      "termination_codes": [
+        0
+      ]
+    },
+    {
+      "test": "p4_transfer",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.002,
+      "termination_codes": [
+        0
+      ]
+    },
+    {
+      "test": "p4_temporary",
+      "passed": true,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "seconds": 0.002,
+      "termination_codes": [
+        0
+      ]
+    }
+  ]
+}

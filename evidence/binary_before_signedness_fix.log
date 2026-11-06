@@ -1,0 +1,94 @@
+./build/selfie-phase4: ================================================================================
+./build/selfie-phase4: this is the selfie system from selfie.cs.uni-salzburg.at with
+./build/selfie-phase4: 64-bit unsigned integers and 64-bit pointers hosted on Linux
+./build/selfie-phase4: ================================================================================
+./build/selfie-phase4: selfie compiling tests/x_pipe_binary.c to 64-bit RISC-U with 64-bit starc
+./build/selfie-phase4: --------------------------------------------------------------------------------
+./build/selfie-phase4: 1379 characters read in 40 lines and 0 comments
+./build/selfie-phase4: with 1094(79.33%) characters in 454 actual symbols
+./build/selfie-phase4: 4 global variables, 5 procedures, 0 string literals
+./build/selfie-phase4: 16 assignments, 2 while, 1 if, 38 calls, 2 return
+./build/selfie-phase4: --------------------------------------------------------------------------------
+./build/selfie-phase4: 147 symbol table lookups in 1 iterations on average
+./build/selfie-phase4: vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+./build/selfie-phase4: 2120 bytes generated with 516 instructions and 56 bytes of data
+./build/selfie-phase4: --------------------------------------------------------------------------------
+./build/selfie-phase4: profile: instruction: total(ratio%)
+./build/selfie-phase4: init:    lui: 3(0.58%), addi: 215(41.66%)
+./build/selfie-phase4: memory:  ld: 73(14.14%), sd: 82(15.89%)
+./build/selfie-phase4: compute: add: 16(3.10%), sub: 14(2.71%), mul: 8(1.55%)
+./build/selfie-phase4: compute: divu: 3(0.58%), remu: 5(0.96%)
+./build/selfie-phase4: compare: sltu: 14(2.71%)
+./build/selfie-phase4: control: beq: 7(1.35%), jal: 44(8.52%), jalr: 17(3.29%)
+./build/selfie-phase4: system:  ecall: 15(2.90%)
+./build/selfie-phase4: --------------------------------------------------------------------------------
+./build/selfie-phase4: profile: data: total(bytes)
+./build/selfie-phase4: global variables:       5(40)
+./build/selfie-phase4: unique string literals: 0(0)
+./build/selfie-phase4: unique big integers:    2(16)
+./build/selfie-phase4: ********************************************************************************
+./build/selfie-phase4: 64-bit mipster executing 64-bit RISC-U binary tests/x_pipe_binary.c with 2MB physical memory
+./build/selfie-phase4: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+ok 01
+ok 02
+ok 03
+ok 04
+ok 05
+ok 06
+ok 07
+ok 08
+ok 09
+FAIL 10
+ok 11
+ok 12
+
+./build/selfie-phase4: <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+./build/selfie-phase4: 64-bit mipster terminating 64-bit RISC-U binary tests/x_pipe_binary.c with exit code 1
+./build/selfie-phase4: --------------------------------------------------------------------------------
+./build/selfie-phase4: summary: 3849 executed instructions in total [22.03% nops]
+./build/selfie-phase4:          0.02MB mapped memory [1.36% of 2MB physical memory]
+./build/selfie-phase4: ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+./build/selfie-phase4: context: > tests/x_pipe_binary.c
+./build/selfie-phase4:          3849 executed instructions [100.00% share, factor 1.00]
+./build/selfie-phase4:          0.14KB peak stack size
+./build/selfie-phase4:          0.00MB allocated in 3 mallocs (0.00MB or 100.00% actually accessed)
+./build/selfie-phase4:          85 exceptions handled by ./build/selfie-phase4, one every 45 executed instructions
+./build/selfie-phase4:          84 syscalls, 1 page faults, 0 timer interrupts
+./build/selfie-phase4: --------------------------------------------------------------------------------
+./build/selfie-phase4: profile: instruction: total(ratio%)[nops%]
+./build/selfie-phase4: init:    lui: 3(0.07%)[0.00%], addi: 1461(37.95%)[11.01%]
+./build/selfie-phase4: memory:  ld: 879(22.83%)[30.48%], sd: 697(18.10%)[42.18%]
+./build/selfie-phase4: compute: add: 84(2.18%)[21.42%], sub: 16(0.41%)[12.50%], mul: 15(0.38%)[53.33%]
+./build/selfie-phase4: compute: divu: 48(1.24%)[2.08%], remu: 60(1.55%)[78.33%]
+./build/selfie-phase4: compare: sltu: 48(1.24%)[14.58%]
+./build/selfie-phase4: control: beq: 54(1.40%)[77.77%], jal: 224(5.81%)[0.00%], jalr: 176(4.57%)[0.00%]
+./build/selfie-phase4: system:  ecall: 84(2.18%)
+./build/selfie-phase4: --------------------------------------------------------------------------------
+./build/selfie-phase4: profile: total,max(ratio%)@address(line#),2ndmax,3rdmax
+./build/selfie-phase4: calls:   176,74(42.04%)@0x11C(~1),74(42.04%)@0x1D0(~6),12(6.81%)@0x224(~8)
+./build/selfie-phase4: loops:   28,28(100.00%)@0x3D8(~17),0(0.00%),0(0.00%)
+./build/selfie-phase4: loads:   879,74(8.41%)@0x11C(~1),74(8.41%)@0x124(~1),74(8.41%)@0x12C(~1)
+./build/selfie-phase4: stores:  697,74(10.61%)@0x1D4(~6),74(10.61%)@0x1DC(~6),74(10.61%)@0x1EC(~6)
+./build/selfie-phase4: --------------------------------------------------------------------------------
+./build/selfie-phase4: CPU+memory:    reads+writes,reads,writes[reads/writes]
+./build/selfie-phase4: heap segment:  87,9,78[0.11]
+./build/selfie-phase4: gp register:   210,209,1[209.00]
+./build/selfie-phase4: data segment:  209,191,18[10.61]
+./build/selfie-phase4: ra register:   542,271,271[1.00]
+./build/selfie-phase4: sp register:   2653,1845,808[2.28]
+./build/selfie-phase4: s0 register:   625,434,191[2.27]
+./build/selfie-phase4: stack total:   3820,2550,1270[2.00]
+./build/selfie-phase4: stack segment: 1281,679,602[1.12]
+./build/selfie-phase4: a0 register:   285,110,175[0.62]
+./build/selfie-phase4: a1 register:   150,74,76[0.97]
+./build/selfie-phase4: a2 register:   150,74,76[0.97]
+./build/selfie-phase4: a6 register:   85,0,85[0.00]
+./build/selfie-phase4: a7 register:   168,84,84[1.00]
+./build/selfie-phase4: args total:    838,342,496[0.68]
+./build/selfie-phase4: t0 register:   1510,757,753[1.00]
+./build/selfie-phase4: t1 register:   688,347,341[1.01]
+./build/selfie-phase4: t2 register:   176,88,88[1.00]
+./build/selfie-phase4: t3 register:   14,7,7[1.00]
+./build/selfie-phase4: temps total:   2388,1199,1189[1.00]
+./build/selfie-phase4: ################################################################################

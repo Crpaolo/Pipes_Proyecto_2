@@ -1,0 +1,1 @@
+PASS: patch applies to the original source and reconstructs final selfie.c byte-for-byte.

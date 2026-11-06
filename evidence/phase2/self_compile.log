@@ -1,0 +1,29 @@
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: ================================================================================
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: this is the selfie system from selfie.cs.uni-salzburg.at with
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: 64-bit unsigned integers and 64-bit pointers hosted on Linux
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: ================================================================================
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: selfie compiling /workspace/scratch/c34a997614e7/Pipes_Fase4/checkpoints/phase2.c to 64-bit RISC-U with 64-bit starc
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: --------------------------------------------------------------------------------
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: 372455 characters read in 12607 lines and 1784 comments
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: with 222645(59.78%) characters in 52063 actual symbols
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: 497 global variables, 667 procedures, 504 string literals
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: 1428 assignments, 96 while, 967 if, 3232 calls, 626 return
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: --------------------------------------------------------------------------------
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: 20236 symbol table lookups in 2 iterations on average
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: 190984 bytes generated with 44194 instructions and 14208 bytes of data
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: --------------------------------------------------------------------------------
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: profile: instruction: total(ratio%)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: init:    lui: 2770(6.26%), addi: 12877(29.13%)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: memory:  ld: 8222(18.60%), sd: 7976(18.04%)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: compute: add: 3808(8.61%), sub: 786(1.77%), mul: 537(1.21%)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: compute: divu: 93(0.21%), remu: 29(0.06%)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: compare: sltu: 766(1.73%)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: control: beq: 1067(2.41%), jal: 4575(10.35%), jalr: 677(1.53%)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: system:  ecall: 11(0.02%)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: --------------------------------------------------------------------------------
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: profile: data: total(bytes)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: global variables:       498(3984)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: unique string literals: 385(10216)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: unique big integers:    1(8)
+/workspace/scratch/c34a997614e7/Pipes_Fase4/build/selfie-phase2: ################################################################################
